@@ -88,13 +88,16 @@
 // deletion path and not two that can drift apart.
 //
 // WHY A PASSWORD AND NOT AN EMAILED LINK. A magic link is the nicer flow and
-// was the first design. It cannot work on this project today: Supabase Auth is
-// on the built-in email service (no custom SMTP configured, and the project's
-// send limit is 2 per hour), which is a testing facility, not something a real
-// user's inbox can rely on. Signing in with the app's own credentials proves
-// ownership just as well, needs no email to be delivered, and fails in exactly
-// the same way the app does for somebody who has forgotten their password.
-// Measured 2026-09-18 against the live project's auth config.
+// was the first design. It cannot work on this project today. Read off the live
+// auth config on 2026-09-18: smtp_host is null, so there is no custom mail
+// provider, sends leave from Supabase's shared noreply@mail.app.supabase.io,
+// and rate_limit_email_sent is 2, meaning the entire project may send two
+// emails per hour. A deletion route that depends on a delivered email would
+// fail for the third person to use it in any given hour.
+//
+// Signing in with the app's own credentials proves ownership just as well,
+// needs no email delivered, and fails in exactly the same way the app does for
+// somebody who has forgotten their password.
 //
 // This key is the anon key. It is public by design: the same string ships
 // inside the APK and is safe to publish. It grants nothing on its own. Every
