@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delete your CUE account</title>
+<meta name="description" content="Permanently delete your CUE account and everything in it, without installing the app.">
+<meta name="robots" content="index, follow">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="./">CUE</a>
+    <div class="tagline">AI phone calls from characters you create</div>
+  </header>
+
+  <h1>Delete your account</h1>
+  <p class="updated">This page deletes the same things the app does, and it does not need the app installed.</p>
+
+  <div class="warn">
+    <strong style="color:#ffffff">This cannot be undone.</strong> Unused credits are not refunded.
+  </div>
+
+  <p>Deleting your account removes:</p>
+  <ul>
+    <li>Your profile, email address and credit balance</li>
+    <li>Every character you created, including its voice and its AI agent</li>
+    <li>Every scheduled call</li>
+    <li>Your call history and every memory summary</li>
+  </ul>
+  <p>Any active subscription is cancelled first, so a deleted account cannot keep billing your card.
+  Stripe keeps its own invoice records, which financial law requires it to retain and which we
+  cannot erase on your behalf.</p>
+
+  <!-- Step 1: prove the account is yours. -->
+  <section id="step-signin">
+    <h1 style="font-size:18px;margin-top:34px">Step 1: sign in</h1>
+    <p style="font-size:14px;color:var(--t3)">Use the same email and password you use in the app.
+    Signing in here is how we confirm the account belongs to you.</p>
+    <form id="signin-form" autocomplete="on">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+      <button type="submit" id="signin-btn">Sign in</button>
+    </form>
+    <div id="signin-msg"></div>
+  </section>
+
+  <!-- Step 2: confirm, with the account named back to the user. -->
+  <section id="step-confirm" class="hidden">
+    <h1 style="font-size:18px;margin-top:34px">Step 2: confirm</h1>
+    <div class="card">
+      <p>Signed in as <strong id="who" style="color:#ffffff"></strong></p>
+      <p id="balance" style="color:var(--t3);margin-top:6px"></p>
+    </div>
+    <label for="confirm">Type <strong style="color:#ffffff">DELETE</strong> to confirm</label>
+    <input type="text" id="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <button type="button" class="danger" id="delete-btn" disabled>Delete my account forever</button>
+    <button type="button" class="quiet" id="cancel-btn">Cancel</button>
+    <div id="delete-msg"></div>
+  </section>
+
+  <!-- Step 3. -->
+  <section id="step-done" class="hidden">
+    <h1 style="font-size:18px;margin-top:34px">Your account is deleted</h1>
+    <div class="msg ok">Everything listed above has been removed. You can close this page.</div>
+    <div id="done-warnings"></div>
+  </section>
+
+  <nav class="links">
+    <a href="privacy.html">Privacy policy</a>
+    <a href="terms.html">Terms and conditions</a>
+    <a href="./">Home</a>
+  </nav>
+
+  <footer>
+    If you cannot sign in because you have forgotten your password, contact the support address
+    shown on the CUE listing in the Google Play Store and the account will be deleted for you.
+  </footer>
+</div>
+
+<script>
+// Google Play requires account deletion to be reachable from the web, without
+// installing the app. This page is that route, and it calls exactly the same
+// Edge Function the in-app Delete account button calls, so there is one
+// deletion path and not two that can drift apart.
+//
+// WHY A PASSWORD AND NOT AN EMAILED LINK. A magic link is the nicer flow and
+// was the first design. It cannot work on this project today: Supabase Auth is
+// on the built-in email service (no custom SMTP configured, and the project's
+// send limit is 2 per hour), which is a testing facility, not something a real
+// user's inbox can rely on. Signing in with the app's own credentials proves
+// ownership just as well, needs no email to be delivered, and fails in exactly
+// the same way the app does for somebody who has forgotten their password.
+// Measured 2026-09-18 against the live project's auth config.
+//
+// This key is the anon key. It is public by design: the same string ships
+// inside the APK and is safe to publish. It grants nothing on its own. Every
+// table is behind row level security, and since the 2026-09-18 migrations the
+// anon role holds no read or write on any table at all.
+var SUPABASE_URL = 'https://vgbfoeardgythdvmpvwr.supabase.co';
+var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnYmZvZWFyZGd5dGhkdm1wdndyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MDYwNDEsImV4cCI6MjA5ODQ4MjA0MX0.UemzBohmRw6jfn2WuIrewfhMjw8bpc9vwX9k9uFP2Gk';
+
+// Held in a closure variable only. Never localStorage: this token can delete an
+// account, and there is no reason for it to outlive the tab.
+var accessToken = null;
+
+function $(id) { return document.getElementById(id); }
+
+function show(el) { el.classList.remove('hidden'); }
+function hide(el) { el.classList.add('hidden'); }
+
+function message(container, text, kind) {
+  container.innerHTML = '';
+  if (!text) return;
+  var div = document.createElement('div');
+  div.className = 'msg ' + kind;
+  div.textContent = text;
+  container.appendChild(div);
+}
+
+$('signin-form').addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  var btn = $('signin-btn');
+  var email = $('email').value.trim();
+  var password = $('password').value;
+  if (!email || !password) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  message($('signin-msg'), '', '');
+
+  fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, password: password })
+  })
+    .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
+    .then(function (r) {
+      if (!r.ok || !r.body.access_token) {
+        // Deliberately the same wording whatever the reason. Telling the
+        // visitor which half was wrong tells an attacker which emails have
+        // accounts.
+        throw new Error('That email and password do not match an account.');
+      }
+      accessToken = r.body.access_token;
+      $('who').textContent = r.body.user && r.body.user.email ? r.body.user.email : email;
+      hide($('step-signin'));
+      show($('step-confirm'));
+      return loadBalance(r.body.user && r.body.user.id);
+    })
+    .catch(function (err) {
+      message($('signin-msg'), err.message || 'Could not sign in. Please try again.', 'error');
+    })
+    .then(function () {
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    });
+});
+
+// Shown so the visitor can see they are about to delete the right account
+// rather than trusting an email address they just typed. Best effort: a failure
+// here must not block the deletion, which is the thing they came for.
+function loadBalance(userId) {
+  if (!userId) return;
+  return fetch(SUPABASE_URL + '/rest/v1/profiles?select=credits_balance&id=eq.' + encodeURIComponent(userId), {
+    headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + accessToken }
+  })
+    .then(function (res) { return res.ok ? res.json() : []; })
+    .then(function (rows) {
+      if (rows && rows.length && rows[0].credits_balance !== null) {
+        $('balance').textContent = 'Credit balance: ' + rows[0].credits_balance +
+          '. Unused credits are not refunded.';
+      }
+    })
+    .catch(function () { /* nothing to show, and nothing to block */ });
+}
+
+$('confirm').addEventListener('input', function () {
+  $('delete-btn').disabled = $('confirm').value.trim().toUpperCase() !== 'DELETE';
+});
+
+$('cancel-btn').addEventListener('click', function () {
+  accessToken = null;
+  $('password').value = '';
+  $('confirm').value = '';
+  $('delete-btn').disabled = true;
+  message($('delete-msg'), '', '');
+  hide($('step-confirm'));
+  show($('step-signin'));
+});
+
+$('delete-btn').addEventListener('click', function () {
+  if ($('confirm').value.trim().toUpperCase() !== 'DELETE' || !accessToken) return;
+  var btn = $('delete-btn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  message($('delete-msg'), '', '');
+
+  fetch(SUPABASE_URL + '/functions/v1/account-delete', {
+    method: 'POST',
+    headers: {
+      'apikey': ANON_KEY,
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json'
+    },
+    body: '{}'
+  })
+    .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
+    .then(function (r) {
+      if (!r.ok || !r.body.ok) {
+        throw new Error(r.body && r.body.error
+          ? 'Could not delete your account. Nothing was changed. (' + r.body.error + ')'
+          : 'Could not delete your account. Nothing was changed. Please try again.');
+      }
+      accessToken = null;
+      hide($('step-confirm'));
+      show($('step-done'));
+      // account-delete collects failures rather than throwing on them, because
+      // a partial delete is worse than a slow one. If the identity is gone but
+      // a third party refused, the visitor is told rather than left to assume.
+      if (r.body.warnings && r.body.warnings.length) {
+        var d = document.createElement('div');
+        d.className = 'msg error';
+        d.textContent = 'Your account is gone. Some linked services did not confirm: ' +
+          r.body.warnings.join('; ') + '. Contact support if you need this followed up.';
+        $('done-warnings').appendChild(d);
+      }
+    })
+    .catch(function (err) {
+      message($('delete-msg'), err.message, 'error');
+      btn.disabled = false;
+      btn.textContent = 'Delete my account forever';
+    });
+});
+</script>
+</body>
+</html>

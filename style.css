@@ -1,0 +1,136 @@
+/* Mirrors app/src/theme/colors.ts so the hosted pages and the app look like
+   the same product. Dark is the app's default and the only mode here. */
+:root {
+  --page-bg: #0d0d0d;
+  --card-bg: #1a1a1a;
+  --t1: #ffffff;
+  --t2: #bbbbbb;
+  --t3: #666666;
+  --border: #2d2d2d;
+  --gold: #c9a84c;
+  --danger: #cc3333;
+  --success: #22aa44;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--t2);
+  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 660px; margin: 0 auto; padding: 40px 20px 72px; }
+
+header { margin-bottom: 34px; }
+
+.logo {
+  display: inline-block;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.tagline { color: var(--t3); font-size: 13px; margin-top: 4px; }
+
+h1 { color: var(--t1); font-size: 23px; margin: 0 0 6px; }
+h2 { color: var(--gold); font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+
+.updated { color: var(--t3); font-size: 12px; margin: 0 0 26px; }
+
+.card {
+  background: var(--card-bg);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+
+.card p { margin: 0; font-size: 14px; }
+
+a { color: var(--gold); }
+a:hover { color: #e0c368; }
+
+nav.links { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+nav.links a {
+  display: inline-block;
+  padding: 11px 16px;
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+nav.links a:hover { border-color: var(--gold); }
+
+footer {
+  margin-top: 46px;
+  padding-top: 18px;
+  border-top: 0.5px solid var(--border);
+  color: var(--t3);
+  font-size: 12px;
+}
+
+footer a { color: var(--t3); }
+
+/* Forms, used only by the deletion page. */
+label { display: block; color: var(--t2); font-size: 13px; margin: 14px 0 6px; }
+
+input[type=email], input[type=password], input[type=text] {
+  width: 100%;
+  padding: 12px 13px;
+  background: #121212;
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--t1);
+  font-size: 15px;
+}
+
+input:focus { outline: none; border-color: var(--gold); }
+
+button {
+  margin-top: 18px;
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  background: var(--gold);
+  color: #0d0d0d;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+button.danger { background: var(--danger); color: #ffffff; }
+
+button.quiet {
+  background: transparent;
+  color: var(--t3);
+  border: 0.5px solid var(--border);
+  font-weight: 400;
+}
+
+.msg { margin-top: 16px; font-size: 14px; padding: 12px 14px; border-radius: 10px; }
+.msg.error { background: #2a1414; color: #ff8080; border: 0.5px solid #4a2020; }
+.msg.ok { background: #14240f; color: #7fd47f; border: 0.5px solid #204a20; }
+
+.warn {
+  border-left: 3px solid var(--danger);
+  padding-left: 14px;
+  margin: 22px 0;
+  color: var(--t2);
+  font-size: 14px;
+}
+
+ul { padding-left: 20px; font-size: 14px; }
+li { margin-bottom: 5px; }
+
+.hidden { display: none; }
